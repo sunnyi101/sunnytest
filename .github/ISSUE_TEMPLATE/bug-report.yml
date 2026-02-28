@@ -1,0 +1,61 @@
+name: Bug Report
+description: File a bug report
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to fill out this bug report!
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What version are you running?
+      placeholder: e.g. 1.0.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug in detail.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+
+  - type: upload
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Upload any screenshots that show the issue.
+    validations:
+      required: false
+      accept: ".png,.jpg,.gif,.jpeg"
+
+  - type: upload
+    id: logs
+    attributes:
+      label: Log files
+      description: Upload any relevant log or text files.
+    validations:
+      required: false
+      accept: ".log,.txt,.zip,.gz"
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - macOS
+        - Windows
+        - Linux
+        - Other
+    validations:
+      required: true
