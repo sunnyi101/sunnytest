@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Calculator</title>
+<style>
+  :root {
+    --bg: #1e1f26; --panel: #2a2c36; --key: #3a3d4a; --key-hover: #474b5c;
+    --op: #ff9f0a; --op-hover: #ffb340; --fn: #a5a5a5; --text: #f5f5f7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--bg); font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .calc {
+    width: 320px; background: var(--panel); border-radius: 20px; padding: 20px;
+    box-shadow: 0 20px 50px rgba(0,0,0,.5);
+  }
+  .display {
+    color: var(--text); text-align: right; padding: 10px 6px 18px; min-height: 110px;
+    display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden;
+  }
+  .expr { font-size: 16px; color: #9a9cab; min-height: 20px; word-break: break-all; }
+  .value { font-size: 48px; font-weight: 300; word-break: break-all; line-height: 1.1; }
+  .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  button {
+    height: 62px; border: none; border-radius: 31px; font-size: 24px; cursor: pointer;
+    background: var(--key); color: var(--text); transition: background .1s, transform .05s;
+  }
+  button:hover { background: var(--key-hover); }
+  button:active { transform: scale(.95); }
+  button.fn { background: var(--fn); color: #111; }
+  button.fn:hover { background: #c4c4c4; }
+  button.op { background: var(--op); }
+  button.op:hover { background: var(--op-hover); }
+  button.op.active { background: var(--text); color: var(--op); }
+  button.zero { grid-column: span 2; text-align: left; padding-left: 26px; }
+</style>
+</head>
+<body>
+<div class="calc">
+  <div class="display">
+    <div class="expr" id="expr"></div>
+    <div class="value" id="value">0</div>
+  </div>
+  <div class="keys">
+    <button class="fn" data-action="clear" id="clear">AC</button>
+    <button class="fn" data-action="sign">±</button>
+    <button class="fn" data-action="percent">%</button>
+    <button class="op" data-op="/">÷</button>
+    <button data-digit="7">7</button><button data-digit="8">8</button><button data-digit="9">9</button>
+    <button class="op" data-op="*">×</button>
+    <button data-digit="4">4</button><button data-digit="5">5</button><button data-digit="6">6</button>
+    <button class="op" data-op="-">−</button>
+    <button data-digit="1">1</button><button data-digit="2">2</button><button data-digit="3">3</button>
+    <button class="op" data-op="+">+</button>
+    <button class="zero" data-digit="0">0</button>
+    <button data-action="decimal">.</button>
+    <button class="op" data-action="equals">=</button>
+  </div>
+</div>
+<script>
+  const SYMBOLS = { "/": "÷", "*": "×", "-": "−", "+": "+" };
+  const state = { current: "0", previous: null, operator: null, overwrite: false };
+  const valueEl = document.getElementById("value");
+  const exprEl = document.getElementById("expr");
+  const clearEl = document.getElementById("clear");
+
+  function compute(a, b, op) {
+    switch (op) {
+      case "+": return a + b;
+      case "-": return a - b;
+      case "*": return a * b;
+      case "/": return b === 0 ? NaN : a / b;
+    }
+  }
+
+  function format(n) {
+    if (!isFinite(n)) return "Error";
+    const rounded = parseFloat(n.toPrecision(12));
+    return Math.abs(rounded) >= 1e12 || (rounded !== 0 && Math.abs(rounded) < 1e-9)
+      ? rounded.toExponential(6) : String(rounded);
+  }
+
+  function render() {
+    valueEl.textContent = state.current;
+    valueEl.style.fontSize = state.current.length > 9 ? "32px" : "48px";
+    exprEl.textContent = state.operator ? `${state.previous} ${SYMBOLS[state.operator]}` : "";
+    clearEl.textContent = state.current !== "0" && !state.overwrite ? "C" : "AC";
+    document.querySelectorAll("[data-op]").forEach(b =>
+      b.classList.toggle("active", b.dataset.op === state.operator && state.overwrite));
+  }
+
+  function inputDigit(d) {
+    if (state.current === "Error" || state.overwrite) { state.current = d; state.overwrite = false; }
+    else if (state.current.replace(/[-.]/g, "").length < 15)
+      state.current = state.current === "0" ? d : state.current + d;
+  }
+
+  function inputDecimal() {
+    if (state.current === "Error" || state.overwrite) { state.current = "0."; state.overwrite = false; }
+    else if (!state.current.includes(".")) state.current += ".";
+  }
+
+  function chooseOperator(op) {
+    if (state.current === "Error") return;
+    if (state.operator && !state.overwrite) equals(true);
+    state.previous = state.current;
+    state.operator = op;
+    state.overwrite = true;
+  }
+
+  function equals(chaining = false) {
+    if (!state.operator || state.previous === null) return;
+    const result = format(compute(parseFloat(state.previous), parseFloat(state.current), state.operator));
+    state.current = result;
+    if (!chaining) { state.previous = null; state.operator = null; }
+    state.overwrite = true;
+  }
+
+  function clear() {
+    if (state.current !== "0" && !state.overwrite) state.current = "0";
+    else Object.assign(state, { current: "0", previous: null, operator: null, overwrite: false });
+  }
+
+  function toggleSign() {
+    if (state.current === "Error" || state.current === "0") return;
+    state.current = state.current.startsWith("-") ? state.current.slice(1) : "-" + state.current;
+  }
+
+  function percent() {
+    if (state.current === "Error") return;
+    state.current = format(parseFloat(state.current) / 100);
+  }
+
+  function backspace() {
+    if (state.overwrite || state.current === "Error") return;
+    state.current = state.current.length > 1 && state.current !== "-0" ? state.current.slice(0, -1) : "0";
+    if (state.current === "-") state.current = "0";
+  }
+
+  document.querySelector(".keys").addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.digit) inputDigit(b.dataset.digit);
+    else if (b.dataset.op) chooseOperator(b.dataset.op);
+    else ({ clear, sign: toggleSign, percent, decimal: inputDecimal, equals: () => equals() })[b.dataset.action]();
+    render();
+  });
+
+  document.addEventListener("keydown", e => {
+    const k = e.key;
+    if (/^\d$/.test(k)) inputDigit(k);
+    else if (k === ".") inputDecimal();
+    else if (k in SYMBOLS) chooseOperator(k);
+    else if (k === "Enter" || k === "=") { e.preventDefault(); equals(); }
+    else if (k === "Backspace") backspace();
+    else if (k === "Escape") clear();
+    else if (k === "%") percent();
+    else return;
+    render();
+  });
+
+  render();
+</script>
+</body>
+</html>
