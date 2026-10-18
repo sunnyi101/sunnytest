@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #1e1e2f, #2d2d44);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .calculator {
+    width: 320px; background: #121218; border-radius: 24px; padding: 20px;
+    box-shadow: 0 20px 50px rgba(0,0,0,.5);
+  }
+  .display {
+    background: #1b1b24; border-radius: 16px; padding: 16px; margin-bottom: 20px;
+    text-align: right; min-height: 100px; display: flex; flex-direction: column; justify-content: flex-end;
+    overflow: hidden;
+  }
+  .expression { color: #8a8aa3; font-size: 16px; min-height: 20px; word-wrap: break-word; }
+  .result { color: #fff; font-size: 40px; font-weight: 300; word-wrap: break-word; }
+  .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  button {
+    height: 64px; border: none; border-radius: 16px; font-size: 22px; cursor: pointer;
+    background: #2a2a38; color: #fff; transition: background .15s, transform .05s;
+  }
+  button:hover { background: #363648; }
+  button:active { transform: scale(.95); }
+  .fn { background: #3d3d52; color: #c9c9ff; }
+  .fn:hover { background: #4a4a63; }
+  .op { background: #ff9f0a; }
+  .op:hover { background: #ffb340; }
+  .eq { background: #30d158; }
+  .eq:hover { background: #4ade72; }
+  .zero { grid-column: span 2; }
+</style>
+</head>
+<body>
+<div class="calculator">
+  <div class="display">
+    <div class="expression" id="expression"></div>
+    <div class="result" id="result">0</div>
+  </div>
+  <div class="keys">
+    <button class="fn" data-action="clear">AC</button>
+    <button class="fn" data-action="sign">±</button>
+    <button class="fn" data-action="percent">%</button>
+    <button class="op" data-op="/">÷</button>
+    <button data-digit="7">7</button>
+    <button data-digit="8">8</button>
+    <button data-digit="9">9</button>
+    <button class="op" data-op="*">×</button>
+    <button data-digit="4">4</button>
+    <button data-digit="5">5</button>
+    <button data-digit="6">6</button>
+    <button class="op" data-op="-">−</button>
+    <button data-digit="1">1</button>
+    <button data-digit="2">2</button>
+    <button data-digit="3">3</button>
+    <button class="op" data-op="+">+</button>
+    <button class="zero" data-digit="0">0</button>
+    <button data-action="decimal">.</button>
+    <button class="eq" data-action="equals">=</button>
+  </div>
+</div>
+<script>
+  const resultEl = document.getElementById('result');
+  const exprEl = document.getElementById('expression');
+  const symbols = { '+': '+', '-': '−', '*': '×', '/': '÷' };
+
+  let current = '0';
+  let previous = null;
+  let operator = null;
+  let resetNext = false;
+
+  function format(n) {
+    if (n === 'Error') return n;
+    const num = Number(n);
+    if (!isFinite(num)) return 'Error';
+    if (Math.abs(num) >= 1e12 || (Math.abs(num) < 1e-9 && num !== 0)) return num.toExponential(6);
+    return String(parseFloat(num.toPrecision(12)));
+  }
+
+  function render() {
+    resultEl.textContent = current;
+    exprEl.textContent = previous !== null && operator ? `${previous} ${symbols[operator]}` : '';
+    resultEl.style.fontSize = current.length > 12 ? '28px' : '40px';
+  }
+
+  function compute(a, b, op) {
+    a = Number(a); b = Number(b);
+    switch (op) {
+      case '+': return a + b;
+      case '-': return a - b;
+      case '*': return a * b;
+      case '/': return b === 0 ? 'Error' : a / b;
+    }
+  }
+
+  function inputDigit(d) {
+    if (current === 'Error' || resetNext) { current = d; resetNext = false; }
+    else if (current === '0') current = d;
+    else if (current.replace(/[-.]/g, '').length < 15) current += d;
+  }
+
+  function inputDecimal() {
+    if (current === 'Error' || resetNext) { current = '0.'; resetNext = false; }
+    else if (!current.includes('.')) current += '.';
+  }
+
+  function setOperator(op) {
+    if (current === 'Error') return;
+    if (operator && previous !== null && !resetNext) {
+      current = format(compute(previous, current, operator));
+      if (current === 'Error') { previous = null; operator = null; resetNext = true; return; }
+    }
+    previous = current;
+    operator = op;
+    resetNext = true;
+  }
+
+  function equals() {
+    if (!operator || previous === null || current === 'Error') return;
+    const expr = `${previous} ${symbols[operator]} ${current} =`;
+    current = format(compute(previous, current, operator));
+    previous = null; operator = null; resetNext = true;
+    render();
+    exprEl.textContent = expr;
+  }
+
+  function handle(action) {
+    switch (action) {
+      case 'clear': current = '0'; previous = null; operator = null; resetNext = false; break;
+      case 'sign': if (current !== '0' && current !== 'Error') current = current.startsWith('-') ? current.slice(1) : '-' + current; break;
+      case 'percent': if (current !== 'Error') current = format(Number(current) / 100); break;
+      case 'decimal': inputDecimal(); break;
+      case 'backspace':
+        if (resetNext || current === 'Error') break;
+        current = current.length > 1 && current !== '-0' ? current.slice(0, -1) : '0';
+        if (current === '-') current = '0';
+        break;
+      case 'equals': equals(); return;
+    }
+    render();
+  }
+
+  document.querySelector('.keys').addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    if (btn.dataset.digit) { inputDigit(btn.dataset.digit); render(); }
+    else if (btn.dataset.op) { setOperator(btn.dataset.op); render(); }
+    else handle(btn.dataset.action);
+  });
+
+  document.addEventListener('keydown', e => {
+    const k = e.key;
+    if (/^[0-9]$/.test(k)) { inputDigit(k); render(); }
+    else if (['+', '-', '*', '/'].includes(k)) { e.preventDefault(); setOperator(k); render(); }
+    else if (k === '.') handle('decimal');
+    else if (k === 'Enter' || k === '=') { e.preventDefault(); handle('equals'); }
+    else if (k === 'Backspace') handle('backspace');
+    else if (k === 'Escape') handle('clear');
+    else if (k === '%') handle('percent');
+  });
+
+  render();
+</script>
+</body>
+</html>
